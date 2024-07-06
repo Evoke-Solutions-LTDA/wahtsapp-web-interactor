@@ -1,0 +1,5 @@
+node_modules
+dist
+sessions
+logs
+user_data
