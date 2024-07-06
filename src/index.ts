@@ -8,7 +8,7 @@ const userId = 'user123';
 const config: any = {
   debug: true,
   authStrategy: RemoteAuth,
-  workerCount: 2 // Quantidade de workers
+  workerCount: 1 // Quantidade de workers
 };
 
 // Inicializa o gerenciador de workers
@@ -30,16 +30,31 @@ const workerManager = new WorkerManager(config, userId);
       logger.info(`Worker ${i + 1} authentication failed`);
     });
 
-    client.on('ready', () => {
+    client.on('authenticated', () => {
+      logger.info(`Worker ${i + 1} is authenticated`);
+    });
+
+    client.on('ready', async () => {
       logger.info(`Worker ${i + 1} is ready!`);
 
-      // Enviando uma mensagem de exemplo após o cliente estar pronto
-      messageHandler.sendMessage('1234567890@c.us', 'Olá, mundo!');
+      // Lista de contatos para enviar mensagens em massa
+      const contacts = [
+        '+55 47 98404-3591',
+        '+55 51 9892-9254',
+        '+55 51 9343-4703'
+      ];
+
+      // Mensagem a ser enviada
+      const message = 'Olá, esta é uma mensagem automatizada de teste do bot lider!';
+      const delay = 3000; // 5 segundos de atraso entre as mensagens
+
+      // Enviando mensagens em massa após o cliente estar pronto
+      await messageHandler.sendBulkMessages(contacts, message, delay);
 
       // Initialize the next worker if there is one
       if (i + 1 < config.workerCount) {
         const nextClient = workerManager.getClients()[i + 1];
-        nextClient.initialize();
+        await nextClient.initialize();
       }
     });
 

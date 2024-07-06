@@ -40,11 +40,13 @@ export class Client extends EventEmitter {
             await this.qrHandler.checkQRAndInitialize();
             await this.connectionHandler.waitForConnection();
             await this.config.authStrategy.saveSession(this.page!);
+            this.emit('authenticated');
           } else {
             this.logger.info('Authenticated using saved session.');
-            this.emit('ready');
+            this.emit('authenticated');
           }
           await this.connectionHandler.monitorDisconnection();
+          this.emit('ready');
         })
         .catch(error => this.logger.error(`Error during initialization: ${error.message}`));
     }

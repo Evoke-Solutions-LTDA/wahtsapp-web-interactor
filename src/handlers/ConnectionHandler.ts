@@ -1,4 +1,3 @@
-
 import { Client } from '../client/Client';
 import { Constants } from '../utils/Constants';
 
@@ -31,7 +30,7 @@ export class ConnectionHandler {
         if (await this.client.isPageActive()) {
           await page.waitForSelector(readySelector, { timeout: this.checkInterval });
           this.client.isReady = true;
-          this.client.emit('ready');
+          this.client.emit('authenticated');
           this.logger.info('User is authenticated and WhatsApp Web is ready.');
           return;
         }
