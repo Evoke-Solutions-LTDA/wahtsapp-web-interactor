@@ -2,6 +2,8 @@ import { WorkerManager } from './client/WorkerManager';
 import { RemoteAuth } from './auth/RemoteAuth';
 import { MessageHandler } from './handlers/MessageHandler';
 import { QRCodeHandler } from './handlers/QRCodeHandler';
+import { IncomingMessageHandler } from './handlers/IncomingMessageHandler'; // Novo handler
+import { Message } from './structures/Message';
 
 // Configuração do cliente
 const userId = 'user123';
@@ -19,6 +21,7 @@ const workerManager = new WorkerManager(config, userId);
     const client = workerManager.getClients()[i];
     const messageHandler = new MessageHandler(client);
     const qrCodeHandler = new QRCodeHandler(client);
+    const incomingMessageHandler = new IncomingMessageHandler(client); // Novo handler
     const logger = client.getLogger();
 
     client.on('qr', (qrCode: string) => {
@@ -37,20 +40,6 @@ const workerManager = new WorkerManager(config, userId);
     client.on('ready', async () => {
       logger.info(`Worker ${i + 1} is ready!`);
 
-      // Lista de contatos para enviar mensagens em massa
-      const contacts = [
-        '+55 47 98404-3591',
-        '+55 51 9892-9254',
-        '+55 51 9343-4703'
-      ];
-
-      // Mensagem a ser enviada
-      const message = 'Olá, esta é uma mensagem automatizada de teste do bot lider!';
-      const delay = 3000; // 5 segundos de atraso entre as mensagens
-
-      // Enviando mensagens em massa após o cliente estar pronto
-      await messageHandler.sendBulkMessages(contacts, message, delay);
-
       // Initialize the next worker if there is one
       if (i + 1 < config.workerCount) {
         const nextClient = workerManager.getClients()[i + 1];
@@ -58,8 +47,9 @@ const workerManager = new WorkerManager(config, userId);
       }
     });
 
-    client.on('message', (message: string) => {
-      messageHandler.handleMessage(message);
+    client.on('message_received', (message: Message) => {
+      logger.info(`New message received: ${message.content}`);
+      messageHandler.handleMessage(message.content);
     });
 
     // Start the first worker

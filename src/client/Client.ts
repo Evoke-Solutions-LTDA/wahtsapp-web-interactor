@@ -2,13 +2,14 @@ import createWinstonLogger from '../logger/Logger';
 import { EventEmitter } from 'events';
 import puppeteer, { Page, Browser } from 'puppeteer';
 import { Constants } from '../utils/Constants';
-import { QRHandler } from '../handlers/QRHandler';
 import { ConnectionHandler } from '../handlers/ConnectionHandler';
 import { Util } from '../utils/Util';
 import { ClientConfig } from './ClientConfig';
 import { SessionManager } from '../auth/SessionManager';
 import path from 'path';
 import fs from 'fs/promises';
+import { QRHandler } from '../handlers/QRHandler';
+import { IncomingMessageHandler } from '../handlers/IncomingMessageHandler';
 
 /**
  * Class representing a WhatsApp Web client.
@@ -22,6 +23,7 @@ export class Client extends EventEmitter {
   public qrHandler: QRHandler;
   private connectionHandler: ConnectionHandler;
   private sessionManager: SessionManager;
+  private incomingMessageHandler: IncomingMessageHandler;
 
   constructor(config: ClientConfig, private userId: string, private workerId: string) {
     super();
@@ -30,6 +32,7 @@ export class Client extends EventEmitter {
     this.qrHandler = new QRHandler(this);
     this.connectionHandler = new ConnectionHandler(this, config.checkInterval || 10000, config.maxAttempts || 12);
     this.sessionManager = new SessionManager(userId, workerId);
+    this.incomingMessageHandler = new IncomingMessageHandler(this);
   }
 
   /**
@@ -39,6 +42,7 @@ export class Client extends EventEmitter {
     this.logger.info('Initializing WhatsApp client...');
     await this.launchBrowser();
     if (this.page) {
+      await this.incomingMessageHandler.initialize();
       this.config.authStrategy.initialize(this.page)
         .then(async () => {
           if (!this.config.authStrategy.isAuthenticated()) {

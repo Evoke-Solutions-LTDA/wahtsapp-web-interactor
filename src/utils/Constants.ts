@@ -10,5 +10,8 @@ export const Constants = {
   SEARCH_BOX: 'div[contenteditable="true"][role="textbox"][aria-label="Caixa de texto de pesquisa"]',
   CONTACT_SELECTOR_PREFIX: 'div[role="button"] span[title="',
   CONTACT_SELECTOR_SUFFIX: '"]',
-  MESSAGE_BOX: 'div[contenteditable="true"][role="textbox"][aria-label="Digite uma mensagem"]'
+  MESSAGE_BOX: 'div[contenteditable="true"][role="textbox"][aria-label="Digite uma mensagem"]',
+  MESSAGE_SELECTOR: '.message-in',
+  MESSAGE_FROM_SELECTOR: '.message-author',
+  MESSAGE_CONTENT_SELECTOR: '.message-text'
 };
