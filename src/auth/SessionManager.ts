@@ -6,7 +6,7 @@ export class SessionManager {
   private sessionFile: string;
   private localStorageFile: string;
 
-  constructor(userId: string, workerId: string, sessionDir: string = 'sessions') {
+  constructor(userId: string, workerId: string, sessionDir: string = 'data/sessions') {
     this.sessionDir = path.join(sessionDir, userId, workerId);
     this.sessionFile = path.join(this.sessionDir, 'session.json');
     this.localStorageFile = path.join(this.sessionDir, 'localStorage.json');
@@ -54,6 +54,17 @@ export class SessionManager {
       await fs.mkdir(dir, { recursive: true });
     } catch (error) {
       console.error(`Error creating directory ${dir}:`, error);
+    }
+  }
+
+  /**
+   * Remove session data.
+   */
+  public async removeSession(): Promise<void> {
+    try {
+      await fs.rm(this.sessionDir, { recursive: true, force: true });
+    } catch (error) {
+      console.error(`Error removing session directory ${this.sessionDir}:`, error);
     }
   }
 }

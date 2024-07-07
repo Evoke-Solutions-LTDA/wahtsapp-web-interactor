@@ -59,11 +59,8 @@ export class ConnectionHandler {
             this.client.isReady = false;
             this.client.emit('disconnected');
             this.logger.info('User has been disconnected.');
-
-            await page.waitForSelector(qrSelector, { timeout: 60000 }).catch(() => {
-              this.logger.error('QR code element not found in time');
-            });
-            await this.client.qrHandler.checkQRAndInitialize(); // Call the method to restart the process
+            await this.client.disconnect();
+            await this.client.initialize(); // Reinitialize to show QR code again
             break;
           }
         }

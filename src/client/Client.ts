@@ -6,6 +6,9 @@ import { QRHandler } from '../handlers/QRHandler';
 import { ConnectionHandler } from '../handlers/ConnectionHandler';
 import { Util } from '../utils/Util';
 import { ClientConfig } from './ClientConfig';
+import { SessionManager } from '../auth/SessionManager';
+import path from 'path';
+import fs from 'fs/promises';
 
 /**
  * Class representing a WhatsApp Web client.
@@ -18,6 +21,7 @@ export class Client extends EventEmitter {
   public isReady: boolean = false;
   public qrHandler: QRHandler;
   private connectionHandler: ConnectionHandler;
+  private sessionManager: SessionManager;
 
   constructor(config: ClientConfig, private userId: string, private workerId: string) {
     super();
@@ -25,6 +29,7 @@ export class Client extends EventEmitter {
     this.logger = createWinstonLogger(config.debug || false);
     this.qrHandler = new QRHandler(this);
     this.connectionHandler = new ConnectionHandler(this, config.checkInterval || 10000, config.maxAttempts || 12);
+    this.sessionManager = new SessionManager(userId, workerId);
   }
 
   /**
@@ -56,9 +61,12 @@ export class Client extends EventEmitter {
    * Launch the browser and navigate to WhatsApp Web.
    */
   private async launchBrowser(): Promise<void> {
+    const userDataDir = path.join('data/user_data', this.userId, this.workerId);
+    await fs.mkdir(userDataDir, { recursive: true });
+
     this.browser = await puppeteer.launch({
       headless: false,
-      userDataDir: `./user_data/${this.userId}/${this.workerId}`, // Diretório para armazenar dados do navegador por usuário e worker
+      userDataDir, // Diretório para armazenar dados do navegador por usuário e worker
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-web-security']
     });
     this.page = await this.browser.newPage();
@@ -83,15 +91,45 @@ export class Client extends EventEmitter {
     this.logger.info('Cleaning up resources...');
     try {
       if (this.page && !this.page.isClosed()) {
+        this.logger.info('Closing page...');
         await this.page.close();
+        this.logger.info('Page closed.');
       }
       if (this.browser && this.browser.isConnected()) {
+        this.logger.info('Closing browser...');
         await this.browser.close();
+        this.logger.info('Browser closed.');
       }
     } catch (error: any) {
       this.logger.error(`Error during cleanup: ${error.message}`);
     }
-    await this.config.authStrategy.cleanup();
+    this.logger.info('Auth strategy cleanup done.');
+    Promise.resolve()
+  }
+
+  /**
+   * Disconnect the client and remove session data.
+   */
+  public async disconnect(): Promise<void> {
+    this.logger.info('Disconnecting and removing session data...');
+    await this.cleanup(); // Fechar recursos primeiro
+
+    this.logger.info('Cleanup done.');
+
+    // Esperar um pouco para garantir que os arquivos estejam liberados
+    await new Promise(resolve => setTimeout(resolve, 5000));
+
+    this.logger.info('Waiting period done.');
+
+    await this.sessionManager.removeSession();
+    const userDataDir = path.join('data/user_data', this.userId, this.workerId);
+    try {
+      await fs.rm(userDataDir, { recursive: true, force: true });
+      this.logger.info(`User data directory ${userDataDir} removed.`);
+    } catch (error: any) {
+      this.logger.error(`Error removing user data directory ${userDataDir}: ${error.message}`);
+    }
+    this.emit('disconnected');
   }
 
   /**
