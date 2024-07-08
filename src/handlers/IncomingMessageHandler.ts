@@ -33,10 +33,8 @@ export class IncomingMessageHandler {
             const outerHTML = parentElement.outerHTML;
             this.logger.debug(`Character data changed in element: ${outerHTML}`);
 
-            const ariaLabelMatch = outerHTML.match(/aria-label="([^"]+)"/);
+            const ariaLabelMatch = outerHTML.match(/aria-label="([^"]*)"/);
             const ariaLabel = ariaLabelMatch ? ariaLabelMatch[1] : null;
-
-            console.log('ariaLabel', ariaLabel)
 
             if (ariaLabel) {
               await page.evaluate((ariaLabel) => {
@@ -50,31 +48,24 @@ export class IncomingMessageHandler {
             }
           }
 
-          
-        }
-
-        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+        } else if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
           for (const node of mutation.addedNodes) {
-            if (node.nodeType === 1) {
-              const element = node as HTMLElement;
-              this.logger.debug(`Child node added: ${element.outerHTML}`);
+            const element = node as HTMLElement;
 
-              const message = this.extractMessage(element);
-              if (message) {
-                this.client.emit('message_received', message);
-                this.logger.info(`New message received from ${message.from}: ${message.content}`);
-              } else {
-                const ariaLabel = element.getAttribute('aria-label');
-                if (ariaLabel) {
-                  await page.evaluate((ariaLabel) => {
-                    const element = document.querySelector(`[aria-label="${ariaLabel}"]`);
-                    if (element) {
-                      (window as any).elementSelector = `[aria-label="${ariaLabel}"]`;
-                    }
-                  }, ariaLabel);
+            if (element.outerHTML) {
+              const ariaLabelMatch = element.outerHTML.match(/aria-label="([^"]*)"/);
+              const ariaLabel = ariaLabelMatch ? ariaLabelMatch[1] : null;
 
-                  await page.click(`[aria-label="${ariaLabel}"]`);
-                }
+              if (ariaLabel) {
+                await page.evaluate((ariaLabel) => {
+                  const element = document.querySelector(`[aria-label="${ariaLabel}"]`);
+                  if (element) {
+                    (window as any).elementSelector = `[aria-label="${ariaLabel}"]`;
+                  }
+                }, ariaLabel);
+
+                await page.click(`[aria-label="${ariaLabel}"]`);
+                this.logger.debug('Element:', element);
               }
             }
           }
@@ -85,11 +76,16 @@ export class IncomingMessageHandler {
     await page.evaluate(() => {
       const observer = new MutationObserver((mutations) => {
         (window as any).onIncomingMessageMutation(mutations.map(mutation => {
-          console.log('mutation', mutation)
           const target = mutation.target && mutation.target.nodeType === 3 ? mutation.target as CharacterData : null;
           return {
             type: mutation.type,
-            addedNodes: [...mutation.addedNodes].map(node => node instanceof Element ? node.outerHTML : ''),
+            addedNodes: [...mutation.addedNodes].map(node => {
+              const el = node as HTMLElement;
+              return {
+                outerHTML: el.outerHTML,
+                ariaLabel: el.getAttribute('aria-label')
+              };
+            }),
             target: target ? {
               data: target.data,
               parentElement: target.parentElement && target.parentElement.outerHTML ? {
