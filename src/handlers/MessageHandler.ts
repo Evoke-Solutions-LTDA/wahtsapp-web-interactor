@@ -43,6 +43,7 @@ export class MessageHandler {
    * @param delay - Delay in milliseconds between each message (default: 3000ms).
    */
   public async sendBulkMessages(contacts: string[], message: string, delay: number = 3000): Promise<void> {
+    console.log('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
     for (const contact of contacts) {
       try {
         await this.searchAndSendMessage(contact, message);
@@ -94,12 +95,13 @@ export class MessageHandler {
    * Send a message to the contact that has been searched.
    * @param message - The message to send.
    */
-  private async sendMessageToContact(message: string): Promise<void> {
+  public async sendMessageToContact(message: string, delay: number = 3000): Promise<void> {
     try {
       // Wait for the message box to be available and send the message
+      await this.delay(delay);
       await this.client.page!.waitForSelector(Constants.MESSAGE_BOX);
       await this.client.page!.click(Constants.MESSAGE_BOX);
-      await this.client.page!.type(Constants.MESSAGE_BOX, message);
+      await this.client.page!.type(Constants.MESSAGE_BOX, message, {delay: 50});
       await this.client.page!.keyboard.press('Enter');
     } catch (error: any) {
       this.client.getLogger().error(`Error sending message: ${error.message}`);

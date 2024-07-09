@@ -1,14 +1,18 @@
 import { Client } from '../client/Client';
 import { Constants } from '../utils/Constants';
 import { Message } from '../structures/Message';
+import { EventEmitter } from 'events';
 
-export class IncomingMessageHandler {
+export class IncomingMessageHandler extends EventEmitter {
   private client: Client;
   private logger: ReturnType<typeof import('../logger/Logger').default>;
+  private processedMessages: Set<string>; // Armazenar IDs de mensagens processadas
 
   constructor(client: Client) {
+    super();
     this.client = client;
     this.logger = client.getLogger();
+    this.processedMessages = new Set(); // Inicializar o Set para armazenar IDs de mensagens processadas
   }
 
   public async initialize(): Promise<void> {
@@ -62,9 +66,11 @@ export class IncomingMessageHandler {
                   if (element) {
                     (window as any).elementSelector = `[aria-label="${ariaLabel}"]`;
                   }
+
                 }, ariaLabel);
 
                 await page.click(`[aria-label="${ariaLabel}"]`);
+                await this.extractMessage(page); // Chame a função sem passar o elemento
                 this.logger.debug('Element:', element);
               }
             }
@@ -113,18 +119,31 @@ export class IncomingMessageHandler {
     this.logger.info('IncomingMessageHandler setup complete.');
   }
 
-  private extractMessage(element: HTMLElement): Message | null {
-    this.logger.debug('Extracting message from element.');
+  private async extractMessage(page: any): Promise<Message | null> {
+    await page.waitForSelector(Constants.MESSAGE_SELECTOR, { timeout: 60000 });
     try {
-      const messageId = element.getAttribute('data-id');
-      const from = element.querySelector(Constants.MESSAGE_FROM_SELECTOR)?.textContent;
-      const content = element.querySelector(Constants.MESSAGE_CONTENT_SELECTOR)?.textContent;
-      if (messageId && from && content) {
-        this.logger.debug(`Message extracted successfully: id=${messageId}, from=${from}`);
-        return new Message(messageId, from, '', content);
-      } else {
-        this.logger.debug('Message extraction failed: Missing id, from, or content.');
+      const messageData = await page.evaluate(() => {
+        const messages = document.querySelectorAll('.message-in .copyable-text');
+        const lastMessageElement = messages[messages.length - 1];
+        const messageText = lastMessageElement ? lastMessageElement.textContent : null;
+
+        const focusableItem = lastMessageElement ? lastMessageElement.closest('.focusable-list-item') : null;
+        const parentElement = focusableItem ? focusableItem.parentElement : null;
+        const dataId = parentElement ? parentElement.getAttribute('data-id') : null;
+        const phoneNumber = dataId ? dataId.split('_')[1].split('@')[0] : null;
+
+        return { messageText, phoneNumber, dataId };
+      });
+
+      if (messageData && messageData.messageText && messageData.phoneNumber) {
+        // Verifique se a mensagem já foi processada
+        if (!this.processedMessages.has(messageData.dataId)) {
+          this.logger.info(`Extracted message: ${messageData.messageText} from ${messageData.phoneNumber}`);
+          this.client.emit('incomingMessage', { messageText: messageData.messageText, phoneNumber: messageData.phoneNumber });
+          this.processedMessages.add(messageData.dataId); // Marque a mensagem como processada
+        }
       }
+
     } catch (error: any) {
       this.logger.error(`Failed to extract message: ${error.message}`);
     }

@@ -42,7 +42,7 @@ export class Client extends EventEmitter {
     this.logger.info('Initializing WhatsApp client...');
     await this.launchBrowser();
     if (this.page) {
-      await this.incomingMessageHandler.initialize();
+      this.incomingMessageHandler.initialize();
       this.config.authStrategy.initialize(this.page)
         .then(async () => {
           if (!this.config.authStrategy.isAuthenticated()) {

@@ -21,7 +21,6 @@ const workerManager = new WorkerManager(config, userId);
     const client = workerManager.getClients()[i];
     const messageHandler = new MessageHandler(client);
     const qrCodeHandler = new QRCodeHandler(client);
-    const incomingMessageHandler = new IncomingMessageHandler(client); // Novo handler
     const logger = client.getLogger();
 
     client.on('qr', (qrCode: string) => {
@@ -37,6 +36,15 @@ const workerManager = new WorkerManager(config, userId);
       logger.info(`Worker ${i + 1} is authenticated`);
     });
 
+    client.on('incomingMessage', (data: any) => {
+      logger.info(data);
+
+      messageHandler.sendMessageToContact('Olá, meu nome é Bot Lider e essa é uma resposta automática de teste')
+
+      // messageHandler.searchAndSendMessage(data.phoneNumber, 'ola testando mensagem')
+      
+    });
+
     client.on('ready', async () => {
       logger.info(`Worker ${i + 1} is ready!`);
 
@@ -45,6 +53,19 @@ const workerManager = new WorkerManager(config, userId);
         const nextClient = workerManager.getClients()[i + 1];
         await nextClient.initialize();
       }
+
+
+      // // Lista de contatos para enviar mensagens em massa
+      // const contacts = [
+      //   '+55 47 98404-3591',
+      // ];
+
+      // // Mensagem a ser enviada
+      // const message = 'Olá, esta é uma mensagem automatizada de teste do bot lider!';
+      // const delay = 3000; // 5 segundos de atraso entre as mensagens
+
+      // // Enviando mensagens em massa após o cliente estar pronto
+      // await messageHandler.sendBulkMessages(contacts, message, delay);
     });
 
     client.on('message_received', (message: Message) => {
