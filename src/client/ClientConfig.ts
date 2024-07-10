@@ -1,4 +1,4 @@
-import { AuthStrategy } from "../auth/AuthStrategy";
+import { AuthStrategy } from '../auth/AuthStrategy';
 
 /**
  * Configuration options for the WhatsApp client.
@@ -9,4 +9,6 @@ export interface ClientConfig {
   checkInterval?: number;
   maxAttempts?: number;
   workerCount?: number;
+  synonymsFilePath?: string;
+  similarityThreshold?: number;
 }

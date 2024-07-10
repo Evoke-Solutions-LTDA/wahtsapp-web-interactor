@@ -1,16 +1,30 @@
+// src/index.ts
 import { WorkerManager } from './client/WorkerManager';
 import { RemoteAuth } from './auth/RemoteAuth';
+import { SimpleResponseHandler } from './handlers/SimpleResponseHandler';
+import { IncomingMessageHandler } from './handlers/IncomingMessageHandler';
 import { MessageHandler } from './handlers/MessageHandler';
-import { QRCodeHandler } from './handlers/QRCodeHandler';
-import { IncomingMessageHandler } from './handlers/IncomingMessageHandler'; // Novo handler
-import { Message } from './structures/Message';
+import { Util } from './utils/Util';
+import fs from 'fs';
 
 // Configuração do cliente
 const userId = 'user123';
+const synonymsFilePath = 'synonyms.json';
+
+// Carrega os sinônimos do arquivo JSON
+let synonyms = {};
+if (fs.existsSync(synonymsFilePath)) {
+  synonyms = JSON.parse(fs.readFileSync(synonymsFilePath, 'utf-8'));
+}
+
+// Define os sinônimos na classe Util
+// Util.setSynonyms(synonyms);
+
 const config: any = {
   debug: true,
   authStrategy: RemoteAuth,
-  workerCount: 1 // Quantidade de workers
+  workerCount: 1, // Quantidade de workers
+  similarityThreshold: 60 // Define a porcentagem de similaridade
 };
 
 // Inicializa o gerenciador de workers
@@ -19,13 +33,29 @@ const workerManager = new WorkerManager(config, userId);
 (async () => {
   for (let i = 0; i < config.workerCount; i++) {
     const client = workerManager.getClients()[i];
-    const messageHandler = new MessageHandler(client);
-    const qrCodeHandler = new QRCodeHandler(client);
     const logger = client.getLogger();
+    const incomingMessageHandler = client['incomingMessageHandler'];
+
+    if (!incomingMessageHandler) {
+      logger.error('IncomingMessageHandler is not initialized in the client.');
+      continue;
+    }
+
+    // Registrar perguntas e respostas
+    const responses = [
+      { question: 'Olá', answer: 'Olá, como posso ajudar?' },
+      { question: 'Quem é você?', answer: 'Eu sou o Bot Líder, como posso ajudar?' }
+    ];
+    const messageHandler = new MessageHandler(client);
+    const responseHandler = new SimpleResponseHandler(messageHandler, responses, logger, config.similarityThreshold);
+
+    // Adiciona o handler de resposta ao IncomingMessageHandler
+    logger.info('Adicionando ResponseHandler');
+    incomingMessageHandler.addResponseHandler(responseHandler);
+    logger.info(`Registered response handler with ${responses.length} responses.`);
 
     client.on('qr', (qrCode: string) => {
       logger.info(`Worker ${i + 1} QR Code received: ${qrCode}`);
-      qrCodeHandler.displayQRCode(qrCode);
     });
 
     client.on('auth_failed', () => {
@@ -36,13 +66,9 @@ const workerManager = new WorkerManager(config, userId);
       logger.info(`Worker ${i + 1} is authenticated`);
     });
 
-    client.on('incomingMessage', (data: any) => {
-      logger.info(data);
-
-      messageHandler.sendMessageToContact('Olá, meu nome é Bot Lider e essa é uma resposta automática de teste')
-
-      // messageHandler.searchAndSendMessage(data.phoneNumber, 'ola testando mensagem')
-      
+    client.on('incomingMessage', async (data: any) => {
+      logger.info(`Incoming message data: ${JSON.stringify(data)}`);
+      // Não é necessário fazer nada aqui, a fila é processada no IncomingMessageHandler
     });
 
     client.on('ready', async () => {
@@ -53,29 +79,10 @@ const workerManager = new WorkerManager(config, userId);
         const nextClient = workerManager.getClients()[i + 1];
         await nextClient.initialize();
       }
-
-
-      // // Lista de contatos para enviar mensagens em massa
-      // const contacts = [
-      //   '+55 47 98404-3591',
-      // ];
-
-      // // Mensagem a ser enviada
-      // const message = 'Olá, esta é uma mensagem automatizada de teste do bot lider!';
-      // const delay = 3000; // 5 segundos de atraso entre as mensagens
-
-      // // Enviando mensagens em massa após o cliente estar pronto
-      // await messageHandler.sendBulkMessages(contacts, message, delay);
     });
 
-    client.on('message_received', (message: Message) => {
-      logger.info(`New message received: ${message.content}`);
-      messageHandler.handleMessage(message.content);
-    });
-
-    // Start the first worker
-    if (i === 0) {
-      await client.initialize();
-    }
+    // Adicionar logs antes de inicializar o cliente
+    logger.info(`Initializing worker ${i + 1}`);
+    await client.initialize();
   }
 })();

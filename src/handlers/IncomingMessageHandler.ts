@@ -1,18 +1,31 @@
+// src/handlers/IncomingMessageHandler.ts
 import { Client } from '../client/Client';
 import { Constants } from '../utils/Constants';
 import { Message } from '../structures/Message';
 import { EventEmitter } from 'events';
+import { MessageHandler } from './MessageHandler';
+import { ResponseHandler } from './ResponseHandler';
 
 export class IncomingMessageHandler extends EventEmitter {
   private client: Client;
   private logger: ReturnType<typeof import('../logger/Logger').default>;
-  private processedMessages: Set<string>; // Armazenar IDs de mensagens processadas
+  private processedMessages: Set<string>;
+  private messageQueue: { messageText: string, phoneNumber: string, dataId: string }[] = [];
+  private isProcessing: boolean = false;
+  private messageHandler: MessageHandler;
+  private responseHandlers: ResponseHandler[] = [];
 
   constructor(client: Client) {
     super();
     this.client = client;
     this.logger = client.getLogger();
-    this.processedMessages = new Set(); // Inicializar o Set para armazenar IDs de mensagens processadas
+    this.processedMessages = new Set();
+    this.messageHandler = new MessageHandler(client);
+  }
+
+  public addResponseHandler(handler: ResponseHandler): void {
+    this.logger.info(`Adding response handler: ${handler.constructor.name}`);
+    this.responseHandlers.push(handler);
   }
 
   public async initialize(): Promise<void> {
@@ -70,7 +83,7 @@ export class IncomingMessageHandler extends EventEmitter {
                 }, ariaLabel);
 
                 await page.click(`[aria-label="${ariaLabel}"]`);
-                await this.extractMessage(page); // Chame a função sem passar o elemento
+                await this.extractMessage(page);
                 this.logger.debug('Element:', element);
               }
             }
@@ -136,11 +149,11 @@ export class IncomingMessageHandler extends EventEmitter {
       });
 
       if (messageData && messageData.messageText && messageData.phoneNumber) {
-        // Verifique se a mensagem já foi processada
+        // Verificar se a mensagem já foi processada
         if (!this.processedMessages.has(messageData.dataId)) {
           this.logger.info(`Extracted message: ${messageData.messageText} from ${messageData.phoneNumber}`);
-          this.client.emit('incomingMessage', { messageText: messageData.messageText, phoneNumber: messageData.phoneNumber });
-          this.processedMessages.add(messageData.dataId); // Marque a mensagem como processada
+          this.addToQueue(messageData); // Adicionar à fila de mensagens
+          this.processedMessages.add(messageData.dataId); // Marcar a mensagem como processada
         }
       }
 
@@ -148,5 +161,44 @@ export class IncomingMessageHandler extends EventEmitter {
       this.logger.error(`Failed to extract message: ${error.message}`);
     }
     return null;
+  }
+
+  private addToQueue(messageData: { messageText: string, phoneNumber: string, dataId: string }) {
+    this.logger.info(`Adding message to queue: ${messageData.messageText}`);
+    this.messageQueue.push(messageData);
+    this.processQueue();
+  }
+
+  private async processQueue() {
+    if (this.isProcessing) return;
+
+    this.isProcessing = true;
+
+    while (this.messageQueue.length > 0) {
+      const messageData = this.messageQueue.shift();
+      if (messageData) {
+        await this.processMessage(messageData);
+      }
+    }
+
+    this.isProcessing = false;
+  }
+
+  private async processMessage(messageData: { messageText: string, dataId: string }) {
+    try {
+      this.logger.info(`Processing message: ${messageData.messageText}`);
+      await this.client.emit('incomingMessage', messageData);
+
+      // Processar os handlers de resposta
+      for (const handler of this.responseHandlers) {
+        this.logger.info(`Handling with: ${handler.constructor.name}`);
+        await handler.handle(messageData);
+      }
+    } catch (error: any) {
+      this.logger.error(`Error processing message ${messageData.dataId}: ${error.message}`);
+    } finally {
+      // Adicione um pequeno delay entre o processamento das mensagens para evitar problemas de duplicação ou envio rápido demais
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   }
 }

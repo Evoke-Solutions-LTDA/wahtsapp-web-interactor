@@ -10,6 +10,8 @@ import path from 'path';
 import fs from 'fs/promises';
 import { QRHandler } from '../handlers/QRHandler';
 import { IncomingMessageHandler } from '../handlers/IncomingMessageHandler';
+import { SimpleResponseHandler } from '../handlers/SimpleResponseHandler';
+import { MessageHandler } from '../handlers/MessageHandler';
 
 /**
  * Class representing a WhatsApp Web client.
@@ -33,6 +35,9 @@ export class Client extends EventEmitter {
     this.connectionHandler = new ConnectionHandler(this, config.checkInterval || 10000, config.maxAttempts || 12);
     this.sessionManager = new SessionManager(userId, workerId);
     this.incomingMessageHandler = new IncomingMessageHandler(this);
+
+    // Carregar sinônimos personalizados
+    this.loadSynonyms();
   }
 
   /**
@@ -76,6 +81,24 @@ export class Client extends EventEmitter {
     this.page = await this.browser.newPage();
     await this.page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.67 Safari/537.36');
     await this.page.goto(Constants.WHATSAPP_WEB_URL, { waitUntil: 'networkidle2' });
+  }
+
+  /**
+   * Load synonyms from a JSON file.
+   */
+  private async loadSynonyms(): Promise<void> {
+    if (this.config.synonymsFilePath) {
+      try {
+        const synonymsData = await fs.readFile(this.config.synonymsFilePath, 'utf-8');
+        const synonyms = JSON.parse(synonymsData);
+        Util.setSynonyms(synonyms);
+        this.logger.info(`Loaded synonyms from ${this.config.synonymsFilePath}`);
+      } catch (error:any) {
+        this.logger.error(`Failed to load synonyms from ${this.config.synonymsFilePath}: ${error.message}`);
+      }
+    } else {
+      this.logger.warn('No synonyms file path provided.');
+    }
   }
 
   /**
