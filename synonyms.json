@@ -9,7 +9,14 @@
     "bom dia",
     "boa tarde",
     "boa noite",
-    "salve"
+    "salve",
+    "alô",
+    "alo",
+    "e aí",
+    "como vai",
+    "tudo bem",
+    "saudações",
+    "como está"
   ],
   "farewells": [
     "tchau",
@@ -20,7 +27,13 @@
     "até mais",
     "falou",
     "até",
-    "nos vemos"
+    "nos vemos",
+    "até breve",
+    "fui",
+    "vou nessa",
+    "despedida",
+    "até amanhã",
+    "até mais ver"
   ],
   "thanks": [
     "obrigado",
@@ -29,7 +42,13 @@
     "thank you",
     "grato",
     "muito obrigado",
-    "valeu"
+    "valeu",
+    "obrigadão",
+    "reconhecido",
+    "agradeço",
+    "muito grato",
+    "sou grato",
+    "fico grato"
   ],
   "yes": [
     "sim",
@@ -38,7 +57,12 @@
     "yep",
     "sure",
     "com certeza",
-    "positivamente"
+    "positivamente",
+    "certamente",
+    "afirmativo",
+    "sem dúvida",
+    "com certeza",
+    "é claro"
   ],
   "no": [
     "não",
@@ -47,7 +71,12 @@
     "nope",
     "negativo",
     "de jeito nenhum",
-    "de forma alguma"
+    "de forma alguma",
+    "nem pensar",
+    "de maneira nenhuma",
+    "sem chance",
+    "de jeito nenhum",
+    "nunca"
   ],
   "please": [
     "por favor",
@@ -55,7 +84,13 @@
     "pls",
     "plz",
     "se puder",
-    "se possível"
+    "se possível",
+    "faça a gentileza",
+    "por gentileza",
+    "por obséquio",
+    "seria possível",
+    "tem como",
+    "você poderia"
   ],
   "sorry": [
     "desculpa",
@@ -64,7 +99,12 @@
     "sinto muito",
     "me desculpe",
     "perdão",
-    "foi mal"
+    "foi mal",
+    "minhas desculpas",
+    "lamento",
+    "peço desculpas",
+    "lamento muito",
+    "me perdoe"
   ],
   "help": [
     "ajuda",
@@ -73,21 +113,38 @@
     "auxílio",
     "assistência",
     "preciso de ajuda",
-    "me ajude"
+    "me ajude",
+    "me ajuda",
+    "dá uma força",
+    "ajuda aí",
+    "me socorre",
+    "preciso de assistência"
   ],
   "who": [
     "quem",
     "who",
     "quem é",
     "quem é você",
-    "quem está aí"
+    "quem está aí",
+    "quem seria",
+    "quem foi",
+    "quem estará",
+    "quem são",
+    "quem seria você",
+    "quem pode ser"
   ],
   "what": [
     "o que",
     "what",
     "qual",
     "que",
-    "do que"
+    "do que",
+    "o quê",
+    "qual é",
+    "quais",
+    "do que se trata",
+    "o que é isso",
+    "o que seria"
   ],
   "where": [
     "onde",
@@ -95,28 +152,48 @@
     "onde está",
     "onde fica",
     "aonde",
-    "em que lugar"
+    "em que lugar",
+    "aonde vai",
+    "aonde está",
+    "onde pode ser",
+    "em que local",
+    "em qual lugar"
   ],
   "when": [
     "quando",
     "when",
     "em que momento",
     "em que horário",
-    "que horas"
+    "que horas",
+    "a que horas",
+    "em que data",
+    "qual o momento",
+    "em qual horário",
+    "em qual momento"
   ],
   "why": [
     "por que",
     "why",
     "porque",
     "motivo",
-    "razão"
+    "razão",
+    "por qual motivo",
+    "por qual razão",
+    "qual o motivo",
+    "qual a razão",
+    "por que razão"
   ],
   "how": [
     "como",
     "how",
     "de que forma",
     "de que maneira",
-    "de que jeito"
+    "de que jeito",
+    "de que modo",
+    "em que jeito",
+    "de qual forma",
+    "qual é o jeito",
+    "qual é a maneira"
   ],
   "good": [
     "bom",
@@ -124,7 +201,13 @@
     "good",
     "ótimo",
     "excelente",
-    "maravilhoso"
+    "maravilhoso",
+    "perfeito",
+    "muito bom",
+    "incrível",
+    "fantástico",
+    "formidável",
+    "sensacional"
   ],
   "bad": [
     "ruim",
@@ -132,13 +215,25 @@
     "péssimo",
     "terrível",
     "horrível",
-    "lamentável"
+    "lamentável",
+    "desagradável",
+    "deplorável",
+    "péssimo",
+    "triste",
+    "nefando",
+    "abominável"
   ],
   "name": [
     "nome",
     "name",
     "como você se chama",
     "qual é o seu nome",
-    "quem é você"
+    "quem é você",
+    "como se chama",
+    "qual seu nome",
+    "quem é",
+    "seu nome",
+    "diga seu nome",
+    "quem é que se chama"
   ]
 }

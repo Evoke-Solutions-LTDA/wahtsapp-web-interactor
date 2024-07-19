@@ -1,7 +1,5 @@
-// src/handlers/IncomingMessageHandler.ts
 import { Client } from '../client/Client';
 import { Constants } from '../utils/Constants';
-import { Message } from '../structures/Message';
 import { EventEmitter } from 'events';
 import { MessageHandler } from './MessageHandler';
 import { ResponseHandler } from './ResponseHandler';
@@ -10,7 +8,7 @@ export class IncomingMessageHandler extends EventEmitter {
   private client: Client;
   private logger: ReturnType<typeof import('../logger/Logger').default>;
   private processedMessages: Set<string>;
-  private messageQueue: { messageText: string, phoneNumber: string, dataId: string }[] = [];
+  private messageQueue: { ariaLabel: string, timestamp: number }[] = [];
   private isProcessing: boolean = false;
   private messageHandler: MessageHandler;
   private responseHandlers: ResponseHandler[] = [];
@@ -40,51 +38,27 @@ export class IncomingMessageHandler extends EventEmitter {
 
     await page.exposeFunction('onIncomingMessageMutation', async (mutations: any[]) => {
       this.logger.debug(`Mutation records received: ${mutations.length}`);
-
       for (const mutation of mutations) {
         if (mutation.type === 'characterData' && mutation.target && (mutation.target as CharacterData).data) {
           const target = mutation.target as CharacterData;
           const parentElement = target.parentElement;
-
           if (parentElement && parentElement.outerHTML) {
             const outerHTML = parentElement.outerHTML;
             this.logger.debug(`Character data changed in element: ${outerHTML}`);
-
             const ariaLabelMatch = outerHTML.match(/aria-label="([^"]*)"/);
             const ariaLabel = ariaLabelMatch ? ariaLabelMatch[1] : null;
-
             if (ariaLabel) {
-              await page.evaluate((ariaLabel) => {
-                const element = document.querySelector(`[aria-label="${ariaLabel}"]`);
-                if (element) {
-                  (window as any).elementSelector = `[aria-label="${ariaLabel}"]`;
-                }
-              }, ariaLabel);
-
-              await page.click(`[aria-label="${ariaLabel}"]`);
+              this.addToQueue({ ariaLabel, timestamp: Date.now() });
             }
           }
-
         } else if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
           for (const node of mutation.addedNodes) {
             const element = node as HTMLElement;
-
             if (element.outerHTML) {
               const ariaLabelMatch = element.outerHTML.match(/aria-label="([^"]*)"/);
               const ariaLabel = ariaLabelMatch ? ariaLabelMatch[1] : null;
-
               if (ariaLabel) {
-                await page.evaluate((ariaLabel) => {
-                  const element = document.querySelector(`[aria-label="${ariaLabel}"]`);
-                  if (element) {
-                    (window as any).elementSelector = `[aria-label="${ariaLabel}"]`;
-                  }
-
-                }, ariaLabel);
-
-                await page.click(`[aria-label="${ariaLabel}"]`);
-                await this.extractMessage(page);
-                this.logger.debug('Element:', element);
+                this.addToQueue({ ariaLabel, timestamp: Date.now() });
               }
             }
           }
@@ -132,9 +106,69 @@ export class IncomingMessageHandler extends EventEmitter {
     this.logger.info('IncomingMessageHandler setup complete.');
   }
 
-  private async extractMessage(page: any): Promise<Message | null> {
-    await page.waitForSelector(Constants.MESSAGE_SELECTOR, { timeout: 60000 });
+  private addToQueue(messageData: { ariaLabel: string, timestamp: number }) {
+    this.logger.info(`Adding ariaLabel to queue: ${messageData.ariaLabel}`);
+    if (this.isNewMessage(messageData.timestamp)) {
+      this.messageQueue.push(messageData);
+      this.logger.debug(`Queue length: ${this.messageQueue.length}`);
+      this.processQueue();
+    }
+  }
+
+  private isNewMessage(timestamp: number): boolean {
+    // Verifique se a mensagem é nova com base no timestamp
+    const currentTime = Date.now();
+    const timeDifference = currentTime - timestamp;
+    const isNew = timeDifference < 60000; // Considere nova se a mensagem foi recebida nos últimos 60 segundos
+    return isNew;
+  }
+
+  private async processQueue() {
+    if (this.isProcessing) return;
+
+    this.logger.info('Starting to process queue...');
+    this.isProcessing = true;
+
+    while (this.messageQueue.length > 0) {
+      const messageData = this.messageQueue.shift();
+      if (messageData) {
+        await this.processMessage(messageData);
+      }
+    }
+
+    this.isProcessing = false;
+    this.logger.info('Finished processing queue.');
+  }
+
+  private async processMessage(messageData: { ariaLabel: string, timestamp: number }) {
     try {
+      this.logger.info(`Processing message for ariaLabel: ${messageData.ariaLabel}`);
+
+      await this.client.page?.click(`[aria-label="${messageData.ariaLabel}"]`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const extractedMessage = await this.extractMessage(this.client.page);
+      if (extractedMessage) {
+        await this.client.emit('incomingMessage', extractedMessage);
+
+        // Processar os handlers de resposta
+        for (const handler of this.responseHandlers) {
+          this.logger.info(`Handling with: ${handler.constructor.name}`);
+          await handler.handle(extractedMessage);
+        }
+      }
+    } catch (error: any) {
+      this.logger.error(`Error processing message for ariaLabel ${messageData.ariaLabel}: ${error.message}`);
+    } finally {
+      // Adicione um pequeno delay entre o processamento das mensagens para evitar problemas de duplicação ou envio rápido demais
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+
+  private async extractMessage(page: any): Promise<{ messageText: string, phoneNumber: string, dataId: string } | null> {
+    this.logger.debug(`Extracting message`);
+    try {
+      await page.waitForSelector(Constants.MESSAGE_SELECTOR, { timeout: 60000 });
       const messageData = await page.evaluate(() => {
         const messages = document.querySelectorAll('.message-in .copyable-text');
         const lastMessageElement = messages[messages.length - 1];
@@ -152,53 +186,13 @@ export class IncomingMessageHandler extends EventEmitter {
         // Verificar se a mensagem já foi processada
         if (!this.processedMessages.has(messageData.dataId)) {
           this.logger.info(`Extracted message: ${messageData.messageText} from ${messageData.phoneNumber}`);
-          this.addToQueue(messageData); // Adicionar à fila de mensagens
           this.processedMessages.add(messageData.dataId); // Marcar a mensagem como processada
+          return messageData;
         }
       }
-
     } catch (error: any) {
       this.logger.error(`Failed to extract message: ${error.message}`);
     }
     return null;
-  }
-
-  private addToQueue(messageData: { messageText: string, phoneNumber: string, dataId: string }) {
-    this.logger.info(`Adding message to queue: ${messageData.messageText}`);
-    this.messageQueue.push(messageData);
-    this.processQueue();
-  }
-
-  private async processQueue() {
-    if (this.isProcessing) return;
-
-    this.isProcessing = true;
-
-    while (this.messageQueue.length > 0) {
-      const messageData = this.messageQueue.shift();
-      if (messageData) {
-        await this.processMessage(messageData);
-      }
-    }
-
-    this.isProcessing = false;
-  }
-
-  private async processMessage(messageData: { messageText: string, dataId: string }) {
-    try {
-      this.logger.info(`Processing message: ${messageData.messageText}`);
-      await this.client.emit('incomingMessage', messageData);
-
-      // Processar os handlers de resposta
-      for (const handler of this.responseHandlers) {
-        this.logger.info(`Handling with: ${handler.constructor.name}`);
-        await handler.handle(messageData);
-      }
-    } catch (error: any) {
-      this.logger.error(`Error processing message ${messageData.dataId}: ${error.message}`);
-    } finally {
-      // Adicione um pequeno delay entre o processamento das mensagens para evitar problemas de duplicação ou envio rápido demais
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
   }
 }

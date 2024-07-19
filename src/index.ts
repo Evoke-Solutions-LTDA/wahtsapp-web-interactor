@@ -18,7 +18,7 @@ if (fs.existsSync(synonymsFilePath)) {
 }
 
 // Define os sinônimos na classe Util
-// Util.setSynonyms(synonyms);
+Util.setSynonyms(synonyms);
 
 const config: any = {
   debug: true,
@@ -79,6 +79,15 @@ const workerManager = new WorkerManager(config, userId);
         const nextClient = workerManager.getClients()[i + 1];
         await nextClient.initialize();
       }
+
+      // Enviar mensagens em massa quando o cliente estiver pronto
+      const contactsWithMessagesAndImages = [
+        { contact: '+5547984043591', message: 'Olá, isso é uma mensagem de teste.', imageUrl: 'https://imgur.com/cDH5YxZ.png', option: 'textWithImage' },
+        { contact: '+5551990115310', message: 'Olá, esta é outra mensagem de teste.',imageUrl: 'https://imgur.com/cDH5YxZ.png', option: 'textThenImage' },
+        { contact: '+5547984043591', message: 'Olá, mais uma mensagem de teste.', imageUrl: 'https://imgur.com/cDH5YxZ.png', option: 'imageThenText' }
+      ];
+
+      await messageHandler.sendBulkMessagesToContacts(contactsWithMessagesAndImages);
     });
 
     // Adicionar logs antes de inicializar o cliente
