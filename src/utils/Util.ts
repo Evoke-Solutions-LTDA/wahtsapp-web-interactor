@@ -2,9 +2,6 @@ import { exec } from 'child_process';
 import { Page } from 'puppeteer';
 import { Logger } from 'winston';
 import stringComparison from 'string-comparison';
-import axios from 'axios';
-import fs from 'fs';
-import path from 'path';
 
 let customSynonyms: { [key: string]: string[] } = {};
 
@@ -153,38 +150,5 @@ export class Util {
 
     const levenshtein = stringComparison.levenshtein;
     return levenshtein.similarity(replacedA, replacedB) * 100;
-  }
-
-  /**
-   * Ensure the directory exists.
-   * @param dirPath - The path of the directory.
-   */
-  public static ensureDirectoryExistence(dirPath: string): void {
-    if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
-    }
-  }
-
-  /**
-   * Download an image from a URL.
-   * @param url - The URL of the image.
-   * @param filePath - The path to save the downloaded image.
-   * @returns A promise that resolves when the image is downloaded.
-   */
-  public static async downloadImage(url: string, filePath: string): Promise<void> {
-    this.ensureDirectoryExistence(path.dirname(filePath));
-    const writer = fs.createWriteStream(filePath);
-    const response = await axios({
-      url,
-      method: 'GET',
-      responseType: 'stream'
-    });
-
-    response.data.pipe(writer);
-
-    return new Promise((resolve, reject) => {
-      writer.on('finish', resolve);
-      writer.on('error', reject);
-    });
   }
 }

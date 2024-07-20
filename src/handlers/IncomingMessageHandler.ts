@@ -1,5 +1,6 @@
 import { Client } from '../client/Client';
 import { Constants } from '../utils/Constants';
+import { Message } from '../structures/Message';
 import { EventEmitter } from 'events';
 import { MessageHandler } from './MessageHandler';
 import { ResponseHandler } from './ResponseHandler';
@@ -8,7 +9,7 @@ export class IncomingMessageHandler extends EventEmitter {
   private client: Client;
   private logger: ReturnType<typeof import('../logger/Logger').default>;
   private processedMessages: Set<string>;
-  private messageQueue: { ariaLabel: string, timestamp: number }[] = [];
+  private messageQueue: { ariaLabel: string }[] = [];
   private isProcessing: boolean = false;
   private messageHandler: MessageHandler;
   private responseHandlers: ResponseHandler[] = [];
@@ -48,7 +49,7 @@ export class IncomingMessageHandler extends EventEmitter {
             const ariaLabelMatch = outerHTML.match(/aria-label="([^"]*)"/);
             const ariaLabel = ariaLabelMatch ? ariaLabelMatch[1] : null;
             if (ariaLabel) {
-              this.addToQueue({ ariaLabel, timestamp: Date.now() });
+              this.addToQueue({ ariaLabel });
             }
           }
         } else if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
@@ -58,7 +59,7 @@ export class IncomingMessageHandler extends EventEmitter {
               const ariaLabelMatch = element.outerHTML.match(/aria-label="([^"]*)"/);
               const ariaLabel = ariaLabelMatch ? ariaLabelMatch[1] : null;
               if (ariaLabel) {
-                this.addToQueue({ ariaLabel, timestamp: Date.now() });
+                this.addToQueue({ ariaLabel });
               }
             }
           }
@@ -106,21 +107,11 @@ export class IncomingMessageHandler extends EventEmitter {
     this.logger.info('IncomingMessageHandler setup complete.');
   }
 
-  private addToQueue(messageData: { ariaLabel: string, timestamp: number }) {
+  private addToQueue(messageData: { ariaLabel: string }) {
     this.logger.info(`Adding ariaLabel to queue: ${messageData.ariaLabel}`);
-    if (this.isNewMessage(messageData.timestamp)) {
-      this.messageQueue.push(messageData);
-      this.logger.debug(`Queue length: ${this.messageQueue.length}`);
-      this.processQueue();
-    }
-  }
-
-  private isNewMessage(timestamp: number): boolean {
-    // Verifique se a mensagem é nova com base no timestamp
-    const currentTime = Date.now();
-    const timeDifference = currentTime - timestamp;
-    const isNew = timeDifference < 60000; // Considere nova se a mensagem foi recebida nos últimos 60 segundos
-    return isNew;
+    this.messageQueue.push(messageData);
+    this.logger.debug(`Queue length: ${this.messageQueue.length}`);
+    this.processQueue();
   }
 
   private async processQueue() {
@@ -140,10 +131,10 @@ export class IncomingMessageHandler extends EventEmitter {
     this.logger.info('Finished processing queue.');
   }
 
-  private async processMessage(messageData: { ariaLabel: string, timestamp: number }) {
+  private async processMessage(messageData: { ariaLabel: string }) {
     try {
       this.logger.info(`Processing message for ariaLabel: ${messageData.ariaLabel}`);
-
+      
       await this.client.page?.click(`[aria-label="${messageData.ariaLabel}"]`);
       await new Promise(resolve => setTimeout(resolve, 1000));
 
